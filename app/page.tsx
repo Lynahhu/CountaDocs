@@ -2397,25 +2397,30 @@ export default function Home() {
   async function handleCheckout() {
     if (checkoutBusy) return;
 
-    if (paymentCategory === "international") {
-      setCheckoutError(
-        t("International payments via Gammal Tech (Visa, Mastercard, Apple Pay) will be active as soon as merchant approval completes. Please select National (Edahabia / CIB) for instant checkout.")
-      );
-      return;
-    }
-
     setCheckoutBusy(true);
     setCheckoutError("");
     try {
-      const response = await fetch("/api/checkout", {
+      // Choose API endpoint based on payment category
+      const isInternational = paymentCategory === "international";
+      const endpoint = isInternational ? "/api/checkout/gammaltech" : "/api/checkout";
+      const payload = isInternational
+        ? {
+            plan: selectedPlan,
+            billingCycle,
+            currency: internationalCurrency,
+            card: internationalCard,
+          }
+        : {
+            plan: selectedPlan,
+            billingCycle,
+            locale,
+            paymentMethod: nationalCard,
+          };
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: selectedPlan,
-          billingCycle,
-          locale,
-          paymentMethod: nationalCard,
-        }),
+        body: JSON.stringify(payload),
       });
       const data: { checkoutUrl?: string; checkout_url?: string; url?: string; error?: string; message?: string } =
         await response.json().catch(() => ({}));
