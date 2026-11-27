@@ -1437,66 +1437,23 @@ export default function Home() {
               createdAt: document.created_at,
             }));
 
-            if (fetched.length > 0) {
-              setDocuments(fetched);
-            } else if (loadedClients.length > 0) {
-              const sampleTemplates: Array<{ name: string; cat: DocumentCategory; mime: string; size: number }> = [
-                { name: "Bank statement — September.pdf", cat: "bank_statements", mime: "application/pdf", size: 348160 },
-                { name: "Q3 Tax return & declaration.pdf", cat: "tax_forms", mime: "application/pdf", size: 624500 },
-                { name: "Expense receipts 2025.zip", cat: "receipts", mime: "application/zip", size: 3840000 },
-                { name: "Payroll register — Week 40.xlsx", cat: "payroll", mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", size: 145000 },
-                { name: "Vendor invoices October.pdf", cat: "invoices", mime: "application/pdf", size: 892000 },
-              ];
-              const sampleDocs: ClientDocument[] = loadedClients.flatMap((client, idx) => {
-                return sampleTemplates.map((tpl, tplIdx) => ({
-                  id: `demo-${client.id}-${tplIdx}`,
-                  clientId: client.id!,
-                  uploadedBy: "client",
-                  storagePath: `demo/${tpl.name}`,
-                  fileName: `${client.company} · ${tpl.name}`,
-                  mimeType: tpl.mime,
-                  sizeBytes: tpl.size,
-                  category: tpl.cat,
-                  createdAt: new Date(Date.now() - 1000 * 60 * 60 * (idx * 24 + tplIdx * 6 + 3)).toISOString(),
-                }));
-              });
-              setDocuments(sampleDocs);
-              const notifs: NotificationItem[] = sampleDocs.map((doc) => {
-                const client = clientsById.get(doc.clientId);
-                return {
-                  id: `doc-${doc.id}`,
-                  clientId: doc.clientId,
-                  documentId: doc.id,
-                  clientName: client?.name ?? "Client",
-                  clientCompany: client?.company ?? "",
-                  title: "New document received",
-                  body: `${client?.name ?? "Client"} uploaded ${doc.fileName}`,
-                  createdAt: doc.createdAt,
-                  read: readIds.has(`doc-${doc.id}`),
-                };
-              });
-              setNotifications(notifs);
-            } else {
-              setDocuments([]);
-              setNotifications([]);
-            }
-            if (fetched.length > 0) {
-              const notifs: NotificationItem[] = fetched.map((doc) => {
-                const client = clientsById.get(doc.clientId);
-                return {
-                  id: `doc-${doc.id}`,
-                  clientId: doc.clientId,
-                  documentId: doc.id,
-                  clientName: client?.name ?? "Client",
-                  clientCompany: client?.company ?? "",
-                  title: "New document received",
-                  body: `${client?.name ?? "Client"} uploaded ${doc.fileName}`,
-                  createdAt: doc.createdAt,
-                  read: readIds.has(`doc-${doc.id}`),
-                };
-              });
-              setNotifications(notifs);
-            }
+            setDocuments(fetched);
+            const clientUploads = fetched.filter((doc) => doc.uploadedBy !== activeUser.id);
+            const notifs: NotificationItem[] = clientUploads.map((doc) => {
+              const client = clientsById.get(doc.clientId);
+              return {
+                id: `doc-${doc.id}`,
+                clientId: doc.clientId,
+                documentId: doc.id,
+                clientName: client?.name ?? "Client",
+                clientCompany: client?.company ?? "",
+                title: "New document received",
+                body: `${client?.name ?? "Client"} uploaded ${doc.fileName}`,
+                createdAt: doc.createdAt,
+                read: readIds.has(`doc-${doc.id}`),
+              };
+            });
+            setNotifications(notifs);
             setDocumentsError("");
           }
           setDocumentsLoading(false);
@@ -2194,11 +2151,6 @@ export default function Home() {
   }
 
   async function shareDocument(document: ClientDocument) {
-    if (document.id.startsWith("demo-")) {
-      await navigator.clipboard.writeText(`https://countadocs.com/docs/${encodeURIComponent(document.fileName)}`);
-      setDocumentNotice(t("Share link copied. It expires in 1 hour."));
-      return;
-    }
     const supabase = getSupabaseClient();
     if (!supabase) {
       setDocumentsError(t("Supabase isn’t configured. Add the project URL and publishable key to .env.local, then restart the app."));
