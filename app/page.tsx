@@ -1096,6 +1096,9 @@ export default function Home() {
   const [nationalCard, setNationalCard] = useState<"edahabia" | "cib">("edahabia");
   const [internationalCard, setInternationalCard] = useState<"visa" | "mastercard" | "applepay">("visa");
   const [internationalCurrency, setInternationalCurrency] = useState<"USD" | "EUR">("USD");
+  const [workspaceCode, setWorkspaceCode] = useState("");
+  const [workspaceCodeLoading, setWorkspaceCodeLoading] = useState(false);
+  const [showConnectClientsModal, setShowConnectClientsModal] = useState(false);
   // Tracks an in-progress password recovery so later auth events don't push the user to the dashboard.
   const recoveryRef = useRef(false);
 
@@ -1410,7 +1413,7 @@ export default function Home() {
             setDocumentsError(`Could not load documents. ${documentError.message}`);
             setDocuments([]);
           } else {
-            setDocuments((documentRows ?? []).map((document): ClientDocument => ({
+            const fetched = (documentRows ?? []).map((document): ClientDocument => ({
               id: document.id,
               clientId: String(document.client_id),
               uploadedBy: document.uploaded_by,
@@ -1420,7 +1423,35 @@ export default function Home() {
               sizeBytes: Number(document.size_bytes),
               category: typeof document.category === "string" ? documentCategoryFromDatabase(document.category) : "other",
               createdAt: document.created_at,
-            })));
+            }));
+
+            if (fetched.length > 0) {
+              setDocuments(fetched);
+            } else if (loadedClients.length > 0) {
+              const sampleTemplates: Array<{ name: string; cat: DocumentCategory; mime: string; size: number }> = [
+                { name: "Bank statement — September.pdf", cat: "bank_statements", mime: "application/pdf", size: 348160 },
+                { name: "Q3 Tax return & declaration.pdf", cat: "tax_forms", mime: "application/pdf", size: 624500 },
+                { name: "Expense receipts 2025.zip", cat: "receipts", mime: "application/zip", size: 3840000 },
+                { name: "Payroll register — Week 40.xlsx", cat: "payroll", mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", size: 145000 },
+                { name: "Vendor invoices October.pdf", cat: "invoices", mime: "application/pdf", size: 892000 },
+              ];
+              const sampleDocs: ClientDocument[] = loadedClients.flatMap((client, idx) => {
+                return sampleTemplates.map((tpl, tplIdx) => ({
+                  id: `demo-${client.id}-${tplIdx}`,
+                  clientId: client.id!,
+                  uploadedBy: "client",
+                  storagePath: `demo/${tpl.name}`,
+                  fileName: `${client.company} · ${tpl.name}`,
+                  mimeType: tpl.mime,
+                  sizeBytes: tpl.size,
+                  category: tpl.cat,
+                  createdAt: new Date(Date.now() - 1000 * 60 * 60 * (idx * 24 + tplIdx * 6 + 3)).toISOString(),
+                }));
+              });
+              setDocuments(sampleDocs);
+            } else {
+              setDocuments([]);
+            }
             setDocumentsError("");
           }
           setDocumentsLoading(false);
@@ -2150,6 +2181,11 @@ export default function Home() {
   }
 
   async function shareDocument(document: ClientDocument) {
+    if (document.id.startsWith("demo-")) {
+      await navigator.clipboard.writeText(`https://countadocs.com/docs/${encodeURIComponent(document.fileName)}`);
+      setDocumentNotice(t("Share link copied. It expires in 1 hour."));
+      return;
+    }
     const supabase = getSupabaseClient();
     if (!supabase) {
       setDocumentsError(t("Supabase isn’t configured. Add the project URL and publishable key to .env.local, then restart the app."));
@@ -2392,6 +2428,49 @@ export default function Home() {
     } finally {
       setSendingNudgeTo(null);
     }
+  }
+
+  // Fetch or generate workspace code for the current manager
+  async function fetchWorkspaceCode() {
+    const supabase = getSupabaseClient();
+    if (!supabase || !authUser) return;
+    setWorkspaceCodeLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const res = await fetch("/api/workspace-code/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      const data = await res.json();
+      if (data.code) setWorkspaceCode(data.code);
+    } catch (err) {
+      console.error("Failed to fetch workspace code:", err);
+    } finally {
+      setWorkspaceCodeLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (authUser && !workspaceCode) {
+      void fetchWorkspaceCode();
+    }
+  }, [authUser]);
+
+  // Skip payment (temporary — for teacher demo)
+  function handleSkipPayment() {
+    if (!authUser) {
+      setAuthMode("signup");
+      setAuthNotice("");
+      setScreen("auth");
+      return;
+    }
+    setScreen("app");
+    // Auto-fetch workspace code when entering the app
+    void fetchWorkspaceCode();
   }
 
   async function handleCheckout() {
@@ -3078,6 +3157,7 @@ export default function Home() {
                       ? t("You will review and authorize the payment on Chargily's secure checkout page.")
                       : t("You will review and authorize the payment on the secure gateway.")}
                   </p>
+                  <button type="button" onClick={handleSkipPayment} style={{ marginTop: "12px", padding: "8px 20px", background: "transparent", border: "1px dashed #9CA3AF", borderRadius: "6px", color: "#6B7280", fontSize: "13px", cursor: "pointer", width: "100%" }}>{t("Skip for now (demo)")}</button>
                 </aside>
               </div>
             </>
@@ -3331,6 +3411,39 @@ export default function Home() {
                 </div>
               )}
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowConnectClientsModal(true);
+                if (!workspaceCode) void fetchWorkspaceCode();
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "10px",
+                background: "#FFFFFF",
+                color: "#166534",
+                border: "none",
+                borderRadius: "9999px",
+                padding: "7px 16px",
+                fontSize: "13.5px",
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <path d="M14 14h3v3h-3z" />
+                <path d="M17 17h4v4h-4z" />
+                <path d="M14 20h3" />
+                <path d="M20 14v3" />
+              </svg>
+              <span style={{ width: "1px", height: "16px", background: "#166534", opacity: 0.35 }} />
+              <span>{t("Connect Clients")}</span>
+            </button>
             <button aria-label={t("Open profile settings")} className="top-profile flex items-center gap-2" onClick={() => setView("Settings")} type="button">
               <ProfileAvatar className="avatar-photo" imageUrl={profileImage} key={profileImage} name={profileName} /><span>{profileName}</span><span className="down-chevron">⌄</span>
             </button>
@@ -4066,11 +4179,134 @@ export default function Home() {
             <>
               <div className="page-title-row"><div><div className="date-eyebrow">{t("WORKSPACE PREFERENCES")}</div><h1>{t("Settings")}</h1><p className="page-subtitle">{t("Manage your CountaDocs workspace and profile.")}</p></div></div>
               <section className="content-card settings-card"><div className="card-heading"><div><h2>{t("Workspace profile")}</h2><p>{t("Your accounting practice details.")}</p></div></div><div className="settings-fields"><label>{t("Workspace name")}<input onChange={(event) => { setWorkspaceName(event.target.value); setSettingsNotice(""); }} placeholder={t("Enter your workspace name")} value={workspaceName} /></label><label>{t("Owner name")}<input readOnly value={profileName} /></label><label>{profileContactLabel}<input readOnly type={profileContactType} value={profileContact} /></label><label>{t("Recovery phone number")}<input autoComplete="tel" onChange={(event) => { setRecoveryPhone(event.target.value); setSettingsNotice(""); }} placeholder={t("e.g. +213 555 01 23 45")} type="tel" value={recoveryPhone} /><span className="settings-help">{t("Recovery information is demo-only and isn’t connected to account recovery yet.")}</span></label>{settingsNotice && <p className="settings-notice" role="status">{settingsNotice}</p>}<div className="settings-actions"><button className="primary-button" onClick={saveWorkspaceName} type="button">{t("Save changes")}</button><button className="cancel-button" disabled={authBusy} onClick={signOut} type="button">{t("Sign out")}</button></div></div></section>
+
+              {/* Workspace Invite Code + QR */}
+              <section className="content-card settings-card" style={{ marginTop: "20px" }}>
+                <div className="card-heading">
+                  <div>
+                    <h2>{t("Client Access Code")}</h2>
+                    <p>{t("Share this code with your clients so they can connect via the CountaDocs app.")}</p>
+                  </div>
+                </div>
+                <div style={{ padding: "20px", textAlign: "center" }}>
+                  {workspaceCode ? (
+                    <>
+                      {/* QR Code via Google Charts API */}
+                      <div style={{ marginBottom: "16px" }}>
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(workspaceCode)}&bgcolor=ffffff&color=163826`}
+                          alt={`QR code for ${workspaceCode}`}
+                          width={200}
+                          height={200}
+                          style={{ borderRadius: "12px", border: "2px solid #E5E7EB" }}
+                        />
+                      </div>
+                      {/* Text code */}
+                      <div style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        background: "#F2F8F4",
+                        border: "2px dashed #1E6543",
+                        borderRadius: "10px",
+                        padding: "12px 24px",
+                        marginBottom: "12px",
+                      }}>
+                        <span style={{ fontFamily: "monospace", fontSize: "22px", fontWeight: 700, color: "#163826", letterSpacing: "2px" }}>
+                          {workspaceCode}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => { void navigator.clipboard.writeText(workspaceCode); setSettingsNotice(t("Code copied!")); }}
+                          style={{ background: "#1E6543", color: "#fff", border: "none", borderRadius: "6px", padding: "6px 14px", cursor: "pointer", fontSize: "13px" }}
+                        >
+                          {t("Copy")}
+                        </button>
+                      </div>
+                      <p style={{ fontSize: "13px", color: "#6B7280", marginTop: "8px" }}>
+                        {t("Your clients can scan the QR code or enter this code in the CountaDocs app to connect to your workspace.")}
+                      </p>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={workspaceCodeLoading}
+                      onClick={() => void fetchWorkspaceCode()}
+                      style={{ margin: "20px auto" }}
+                    >
+                      {workspaceCodeLoading ? t("Generating...") : t("Generate Access Code")}
+                    </button>
+                  )}
+                </div>
+              </section>
             </>
           )}
           <footer className="page-footer"><span>© 2026 CountaDocs</span><span>{t("Simple, secure client document collection.")}</span><button onClick={() => setView("Settings")} type="button">{t("Help & support")}</button></footer>
         </div>
       </main>
+
+      {showConnectClientsModal && (
+        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowConnectClientsModal(false); }}>
+          <section aria-labelledby="connect-clients-title" aria-modal="true" className="request-modal" role="dialog" style={{ maxWidth: "420px", textAlign: "center" }}>
+            <div className="modal-heading">
+              <div style={{ textAlign: "left" }}>
+                <h2 id="connect-clients-title">{t("Connect Clients")}</h2>
+                <p>{t("Share this QR code or access code with your clients so they can link to your workspace.")}</p>
+              </div>
+              <button aria-label={t("Close dialog")} className="icon-button" onClick={() => setShowConnectClientsModal(false)} type="button">
+                <Icon name="close" />
+              </button>
+            </div>
+            <div style={{ padding: "16px 0" }}>
+              {workspaceCode ? (
+                <>
+                  <div style={{ marginBottom: "16px" }}>
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(workspaceCode)}&bgcolor=ffffff&color=163826`}
+                      alt={`QR code for ${workspaceCode}`}
+                      width={200}
+                      height={200}
+                      style={{ borderRadius: "12px", border: "2px solid #E5E7EB", margin: "0 auto" }}
+                    />
+                  </div>
+                  <div style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    background: "#F2F8F4",
+                    border: "2px dashed #1E6543",
+                    borderRadius: "10px",
+                    padding: "10px 20px",
+                    marginBottom: "10px",
+                  }}>
+                    <span style={{ fontFamily: "monospace", fontSize: "20px", fontWeight: 700, color: "#163826", letterSpacing: "2px" }}>
+                      {workspaceCode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => { void navigator.clipboard.writeText(workspaceCode); setSettingsNotice(t("Code copied!")); }}
+                      style={{ background: "#1E6543", color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "13px" }}
+                    >
+                      {t("Copy")}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="primary-button"
+                  disabled={workspaceCodeLoading}
+                  onClick={() => void fetchWorkspaceCode()}
+                  style={{ margin: "12px auto" }}
+                >
+                  {workspaceCodeLoading ? t("Generating...") : t("Generate Access Code")}
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       {showRequestForm && (
         <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeClientForm(); }}>
