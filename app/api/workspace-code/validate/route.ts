@@ -24,11 +24,14 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const rawCode = (body.code || "").toString().trim().toUpperCase();
+    const rawInput = (body.code || "").toString().trim().toUpperCase();
 
-    if (!rawCode) {
+    if (!rawInput) {
       return NextResponse.json({ valid: false, error: "No code provided" }, { status: 400 });
     }
+
+    const cleaned = rawInput.replace(/[\s-]/g, "");
+    const formatted = cleaned.length === 8 ? `${cleaned.slice(0, 4)}-${cleaned.slice(4)}` : rawInput;
 
     const supabase = createClient(supabaseUrl, keyToUse);
 
@@ -38,8 +41,9 @@ export async function POST(request: Request) {
       const { data } = await supabase
         .from("workspace_codes")
         .select("manager_id, is_active")
-        .eq("code", rawCode)
-        .single();
+        .or(`code.eq.${rawInput},code.eq.${formatted}`)
+        .limit(1)
+        .maybeSingle();
       if (data) codeRecord = data;
     } catch {
       // Table may not exist yet
@@ -51,9 +55,10 @@ export async function POST(request: Request) {
     if (!managerId) {
       try {
         const { data: usersData } = await supabase.auth.admin.listUsers();
-        const found = usersData?.users?.find(
-          (u) => (u.user_metadata?.workspace_code || "").toString().toUpperCase() === rawCode
-        );
+        const found = usersData?.users?.find((u) => {
+          const stored = (u.user_metadata?.workspace_code || "").toString().toUpperCase();
+          return stored === rawInput || stored === formatted || stored.replace(/[\s-]/g, "") === cleaned;
+        });
         if (found) {
           managerId = found.id;
         }

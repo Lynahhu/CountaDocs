@@ -11,13 +11,15 @@ import { createClient } from "@supabase/supabase-js";
  */
 
 function generateCode(): string {
-  // Format: CTD-XXXXXX (6 alphanumeric chars, no ambiguous characters)
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0,O,1,I,L
-  let result = "CTD-";
-  for (let i = 0; i < 6; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  // Format: XXXX-XXXX (e.g. K7PX-92QM, 8 uppercase alphanumeric chars cleanly grouped)
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0,O,1,I,L to avoid confusion
+  let part1 = "";
+  let part2 = "";
+  for (let i = 0; i < 4; i++) {
+    part1 += chars.charAt(Math.floor(Math.random() * chars.length));
+    part2 += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return result;
+  return `${part1}-${part2}`;
 }
 
 export async function POST(request: Request) {
@@ -72,7 +74,8 @@ export async function POST(request: Request) {
       };
     }
 
-    if (existingCode) {
+    // If the manager has a valid non-legacy code (not starting with old CTD-), return it
+    if (existingCode && !existingCode.code.startsWith("CTD-")) {
       if (!user.user_metadata?.workspace_id) {
         try {
           await supabase.auth.updateUser({
@@ -90,22 +93,35 @@ export async function POST(request: Request) {
       });
     }
 
-    // Generate a unique code
+    // Generate a fresh XXXX-XXXX code
     let code = "";
     let inserted = false;
     for (let attempt = 0; attempt < 5; attempt++) {
       code = generateCode();
       try {
-        const { error: insertError } = await supabase
-          .from("workspace_codes")
-          .insert({ manager_id: user.id, code });
+        if (existingCode && existingCode.code.startsWith("CTD-")) {
+          // Upgrade existing record
+          const { error: updateError } = await supabase
+            .from("workspace_codes")
+            .update({ code })
+            .eq("manager_id", user.id)
+            .eq("is_active", true);
+          if (!updateError) {
+            inserted = true;
+            break;
+          }
+        } else {
+          const { error: insertError } = await supabase
+            .from("workspace_codes")
+            .insert({ manager_id: user.id, code });
 
-        if (!insertError) {
-          inserted = true;
-          break;
+          if (!insertError) {
+            inserted = true;
+            break;
+          }
+
+          if (insertError.code === "23505") continue; // duplicate code, try again
         }
-
-        if (insertError.code === "23505") continue; // duplicate code, try again
       } catch {
         // Table doesn't exist
       }
