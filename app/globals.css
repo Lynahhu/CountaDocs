@@ -299,7 +299,7 @@ h1, h2, h3, p { margin-top: 0; }
 .documents-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)); gap: 14px; padding: 16px; }
 .document-card { min-width: 0; overflow: hidden; border: 1px solid #e8eeeb; border-radius: 8px; background: #fff; transition: border-color .16s, box-shadow .16s, transform .16s; }
 .document-card:hover { transform: translateY(-2px); border-color: #cbded4; box-shadow: 0 8px 18px #1e49310c; }
-.document-card.selected { border-color: #51a477; box-shadow: 0 0 0 2px #51a4771c; }
+.document-card.selected { border-color: #1E6543; box-shadow: 0 0 0 3px rgba(30, 101, 67, 0.25); transform: translateY(-3px); }
 .document-preview { position: relative; display: grid; height: 126px; place-items: center; overflow: hidden; color: #67927a; background: linear-gradient(140deg, #f1f7f2, #e5efe8); }
 .document-preview::after { position: absolute; right: -24px; bottom: -62px; width: 150px; height: 120px; border: 1px solid #6f977017; border-radius: 50%; content: ""; }
 .document-preview-icon { display: grid; width: 58px; height: 68px; place-items: center; border: 1px solid #d5e4d9; border-radius: 7px; color: #508c68; background: #ffffffc9; box-shadow: 0 5px 13px #315d3a0d; }

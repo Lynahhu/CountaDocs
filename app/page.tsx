@@ -1099,6 +1099,18 @@ export default function Home() {
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [workspaceCodeLoading, setWorkspaceCodeLoading] = useState(false);
   const [showConnectClientsModal, setShowConnectClientsModal] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  const copyWorkspaceCode = async () => {
+    if (!workspaceCode) return;
+    try {
+      await navigator.clipboard.writeText(workspaceCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2500);
+    } catch (err) {
+      console.error("Failed to copy code", err);
+    }
+  };
   // Tracks an in-progress password recovery so later auth events don't push the user to the dashboard.
   const recoveryRef = useRef(false);
 
@@ -1449,12 +1461,46 @@ export default function Home() {
                 }));
               });
               setDocuments(sampleDocs);
+              const notifs: NotificationItem[] = sampleDocs.map((doc) => {
+                const client = clientsById.get(doc.clientId);
+                return {
+                  id: `doc-${doc.id}`,
+                  clientId: doc.clientId,
+                  documentId: doc.id,
+                  clientName: client?.name ?? "Client",
+                  clientCompany: client?.company ?? "",
+                  title: "New document received",
+                  body: `${client?.name ?? "Client"} uploaded ${doc.fileName}`,
+                  createdAt: doc.createdAt,
+                  read: readIds.has(`doc-${doc.id}`),
+                };
+              });
+              setNotifications(notifs);
             } else {
               setDocuments([]);
+              setNotifications([]);
+            }
+            if (fetched.length > 0) {
+              const notifs: NotificationItem[] = fetched.map((doc) => {
+                const client = clientsById.get(doc.clientId);
+                return {
+                  id: `doc-${doc.id}`,
+                  clientId: doc.clientId,
+                  documentId: doc.id,
+                  clientName: client?.name ?? "Client",
+                  clientCompany: client?.company ?? "",
+                  title: "New document received",
+                  body: `${client?.name ?? "Client"} uploaded ${doc.fileName}`,
+                  createdAt: doc.createdAt,
+                  read: readIds.has(`doc-${doc.id}`),
+                };
+              });
+              setNotifications(notifs);
             }
             setDocumentsError("");
           }
           setDocumentsLoading(false);
+          setNotificationsLoading(false);
         });
 
       const messagesLoad = (async () => {
@@ -1495,28 +1541,10 @@ export default function Home() {
         setMessagesLoading(false);
       })();
 
-      const notificationsLoad = activeSupabase
-        .from("client_notifications")
-        .select("id, client_id, related_document_id, title, body, created_at")
-        .eq("created_by", activeUser.id)
-        .order("created_at", { ascending: false })
-        .abortSignal(AbortSignal.timeout(10000))
-        .then(({ data: notificationRows, error: notificationsError }) => {
-          if (disposed) return;
-          if (notificationsError) {
-            setNotificationError(`Could not load notifications. ${notificationsError.message}`);
-            setNotifications([]);
-            setNotificationsLoading(false);
-            return;
-          }
-
-          const items = (notificationRows ?? [])
-            .filter(isStoredNotification)
-            .map((record) => notificationFromRecord(record, clientsById, readIds))
-            .filter((item): item is NotificationItem => item !== null);
-          setNotifications(items);
-          setNotificationsLoading(false);
-        });
+      const notificationsLoad = Promise.resolve().then(() => {
+        if (disposed) return;
+        setNotificationsLoading(false);
+      });
 
       await Promise.all([documentsLoad, messagesLoad, notificationsLoad]);
       if (disposed) return;
@@ -1580,22 +1608,7 @@ export default function Home() {
               current.some((notification) => notification.documentId === documentId) ? current : [item, ...current]);
           }
         })
-        .on("postgres_changes", {
-          event: "INSERT",
-          schema: "public",
-          table: "client_notifications",
-          filter: `created_by=eq.${activeUser.id}`,
-        }, (payload) => {
-          if (!isStoredNotification(payload.new)) return;
-          const item = notificationFromRecord(payload.new, clientsById, readIds);
-          if (!item) return;
-          // The database version replaces the local "doc-" one so there are no duplicates.
-          setNotifications((current) => [
-            item,
-            ...current.filter((notification) => notification.id !== item.id
-              && !(item.documentId && notification.id.startsWith("doc-") && notification.documentId === item.documentId)),
-          ]);
-        })
+
         .on("postgres_changes", {
           event: "*",
           schema: "public",
@@ -4203,6 +4216,7 @@ export default function Home() {
                       </div>
                       {/* Text code */}
                       <div style={{
+                        position: "relative",
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "12px",
@@ -4212,15 +4226,53 @@ export default function Home() {
                         padding: "12px 24px",
                         marginBottom: "12px",
                       }}>
+                        {copiedCode && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: "-36px",
+                              left: "50%",
+                              transform: "translateX(-50%)",
+                              background: "#166534",
+                              color: "#FFFFFF",
+                              padding: "5px 14px",
+                              borderRadius: "9999px",
+                              fontSize: "12px",
+                              fontWeight: 700,
+                              boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              whiteSpace: "nowrap",
+                              zIndex: 50,
+                              pointerEvents: "none",
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            {t("Copied successfully!")}
+                          </div>
+                        )}
                         <span style={{ fontFamily: "monospace", fontSize: "22px", fontWeight: 700, color: "#163826", letterSpacing: "2px" }}>
                           {workspaceCode}
                         </span>
                         <button
                           type="button"
-                          onClick={() => { void navigator.clipboard.writeText(workspaceCode); setSettingsNotice(t("Code copied!")); }}
-                          style={{ background: "#1E6543", color: "#fff", border: "none", borderRadius: "6px", padding: "6px 14px", cursor: "pointer", fontSize: "13px" }}
+                          onClick={() => void copyWorkspaceCode()}
+                          style={{
+                            background: copiedCode ? "#15803D" : "#1E6543",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "6px",
+                            padding: "6px 14px",
+                            cursor: "pointer",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            transition: "background 0.2s ease",
+                          }}
                         >
-                          {t("Copy")}
+                          {copiedCode ? `✓ ${t("Copied!")}` : t("Copy")}
                         </button>
                       </div>
                       <p style={{ fontSize: "13px", color: "#6B7280", marginTop: "8px" }}>
@@ -4271,6 +4323,7 @@ export default function Home() {
                     />
                   </div>
                   <div style={{
+                    position: "relative",
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "12px",
@@ -4280,15 +4333,53 @@ export default function Home() {
                     padding: "10px 20px",
                     marginBottom: "10px",
                   }}>
+                    {copiedCode && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "-36px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          background: "#166534",
+                          color: "#FFFFFF",
+                          padding: "5px 14px",
+                          borderRadius: "9999px",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          whiteSpace: "nowrap",
+                          zIndex: 50,
+                          pointerEvents: "none",
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        {t("Copied successfully!")}
+                      </div>
+                    )}
                     <span style={{ fontFamily: "monospace", fontSize: "20px", fontWeight: 700, color: "#163826", letterSpacing: "2px" }}>
                       {workspaceCode}
                     </span>
                     <button
                       type="button"
-                      onClick={() => { void navigator.clipboard.writeText(workspaceCode); setSettingsNotice(t("Code copied!")); }}
-                      style={{ background: "#1E6543", color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "13px" }}
+                      onClick={() => void copyWorkspaceCode()}
+                      style={{
+                        background: copiedCode ? "#15803D" : "#1E6543",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "6px",
+                        padding: "6px 14px",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        transition: "background 0.2s ease",
+                      }}
                     >
-                      {t("Copy")}
+                      {copiedCode ? `✓ ${t("Copied!")}` : t("Copy")}
                     </button>
                   </div>
                 </>
