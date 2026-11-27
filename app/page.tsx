@@ -4168,45 +4168,15 @@ export default function Home() {
                       </div>
                       {/* Text code */}
                       <div style={{
-                        position: "relative",
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "12px",
                         background: "#F2F8F4",
                         border: "2px dashed #1E6543",
                         borderRadius: "10px",
-                        padding: "12px 24px",
-                        marginBottom: "12px",
+                        padding: "10px 20px",
                       }}>
-                        {copiedCode && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              top: "-36px",
-                              left: "50%",
-                              transform: "translateX(-50%)",
-                              background: "#166534",
-                              color: "#FFFFFF",
-                              padding: "5px 14px",
-                              borderRadius: "9999px",
-                              fontSize: "12px",
-                              fontWeight: 700,
-                              boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              whiteSpace: "nowrap",
-                              zIndex: 50,
-                              pointerEvents: "none",
-                            }}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                            {t("Copied successfully!")}
-                          </div>
-                        )}
-                        <span style={{ fontFamily: "monospace", fontSize: "22px", fontWeight: 700, color: "#163826", letterSpacing: "2px" }}>
+                        <span style={{ fontFamily: "monospace", fontSize: "20px", fontWeight: 700, color: "#163826", letterSpacing: "2px" }}>
                           {workspaceCode}
                         </span>
                         <button
@@ -4226,6 +4196,13 @@ export default function Home() {
                         >
                           {copiedCode ? `✓ ${t("Copied!")}` : t("Copy")}
                         </button>
+                      </div>
+                      <div style={{ minHeight: "20px", marginTop: "6px" }}>
+                        {copiedCode && (
+                          <span style={{ fontSize: "11px", fontWeight: 600, color: "#15803D" }}>
+                            ✓ {t("Copied successfully!")}
+                          </span>
+                        )}
                       </div>
                       <p style={{ fontSize: "13px", color: "#6B7280", marginTop: "8px" }}>
                         {t("Your clients can scan the QR code or enter this code in the CountaDocs app to connect to your workspace.")}
@@ -4251,69 +4228,72 @@ export default function Home() {
       </main>
 
       {showConnectClientsModal && (
-        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowConnectClientsModal(false); }}>
-          <section aria-labelledby="connect-clients-title" aria-modal="true" className="request-modal" role="dialog" style={{ maxWidth: "420px", textAlign: "center" }}>
-            <div className="modal-heading">
-              <div style={{ textAlign: "left" }}>
-                <h2 id="connect-clients-title">{t("Connect Clients")}</h2>
-                <p>{t("Share this QR code or access code with your clients so they can link to your workspace.")}</p>
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowConnectClientsModal(false);
+          }}
+        >
+          <section
+            aria-labelledby="connect-clients-title"
+            aria-modal="true"
+            role="dialog"
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "16px",
+              padding: "24px 28px",
+              maxWidth: "460px",
+              width: "92%",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+              textAlign: "center",
+              position: "relative",
+            }}
+          >
+            {/* Header: Title + Subtitle + Close button without crowded grid */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px", gap: "16px" }}>
+              <div style={{ textAlign: "left", flex: 1 }}>
+                <h2 id="connect-clients-title" style={{ margin: "0 0 6px", fontSize: "19px", fontWeight: 700, color: "#163826", whiteSpace: "nowrap" }}>
+                  {t("Connect Clients")}
+                </h2>
+                <p style={{ margin: 0, fontSize: "12px", color: "#6B7280", lineHeight: 1.5 }}>
+                  {t("Share this QR code or access code with your clients so they can link to your workspace.")}
+                </p>
               </div>
-              <button aria-label={t("Close dialog")} className="icon-button" onClick={() => setShowConnectClientsModal(false)} type="button">
+              <button
+                aria-label={t("Close dialog")}
+                className="icon-button"
+                onClick={() => setShowConnectClientsModal(false)}
+                type="button"
+                style={{ flexShrink: 0, color: "#6B7280" }}
+              >
                 <Icon name="close" />
               </button>
             </div>
-            <div style={{ padding: "16px 0" }}>
+
+            <div style={{ padding: "4px 0" }}>
               {workspaceCode ? (
                 <>
-                  <div style={{ marginBottom: "16px" }}>
+                  <div style={{ marginBottom: "14px", display: "flex", justifyContent: "center" }}>
                     <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(workspaceCode)}&bgcolor=ffffff&color=163826`}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=170x170&data=${encodeURIComponent(workspaceCode)}&bgcolor=ffffff&color=163826`}
                       alt={`QR code for ${workspaceCode}`}
-                      width={200}
-                      height={200}
-                      style={{ borderRadius: "12px", border: "2px solid #E5E7EB", margin: "0 auto" }}
+                      width={170}
+                      height={170}
+                      style={{ borderRadius: "10px", border: "1.5px solid #E5E7EB", padding: "6px", background: "#fff" }}
                     />
                   </div>
+
+                  {/* Code box */}
                   <div style={{
-                    position: "relative",
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "12px",
                     background: "#F2F8F4",
-                    border: "2px dashed #1E6543",
-                    borderRadius: "10px",
-                    padding: "10px 20px",
-                    marginBottom: "10px",
+                    border: "1.5px dashed #1E6543",
+                    borderRadius: "8px",
+                    padding: "8px 16px",
                   }}>
-                    {copiedCode && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "-36px",
-                          left: "50%",
-                          transform: "translateX(-50%)",
-                          background: "#166534",
-                          color: "#FFFFFF",
-                          padding: "5px 14px",
-                          borderRadius: "9999px",
-                          fontSize: "12px",
-                          fontWeight: 700,
-                          boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          whiteSpace: "nowrap",
-                          zIndex: 50,
-                          pointerEvents: "none",
-                        }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        {t("Copied successfully!")}
-                      </div>
-                    )}
-                    <span style={{ fontFamily: "monospace", fontSize: "20px", fontWeight: 700, color: "#163826", letterSpacing: "2px" }}>
+                    <span style={{ fontFamily: "monospace", fontSize: "19px", fontWeight: 700, color: "#163826", letterSpacing: "2px" }}>
                       {workspaceCode}
                     </span>
                     <button
@@ -4323,10 +4303,10 @@ export default function Home() {
                         background: copiedCode ? "#15803D" : "#1E6543",
                         color: "#fff",
                         border: "none",
-                        borderRadius: "6px",
-                        padding: "6px 14px",
+                        borderRadius: "5px",
+                        padding: "5px 12px",
                         cursor: "pointer",
-                        fontSize: "13px",
+                        fontSize: "12px",
                         fontWeight: 600,
                         transition: "background 0.2s ease",
                       }}
@@ -4334,6 +4314,31 @@ export default function Home() {
                       {copiedCode ? `✓ ${t("Copied!")}` : t("Copy")}
                     </button>
                   </div>
+
+                  {/* Small "Copied successfully!" text UNDER the code box */}
+                  <div style={{ minHeight: "22px", marginTop: "6px" }}>
+                    {copiedCode && (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          color: "#15803D",
+                        }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        {t("Copied successfully!")}
+                      </span>
+                    )}
+                  </div>
+
+                  <p style={{ fontSize: "11px", color: "#6B7280", margin: "4px 0 0", lineHeight: 1.4 }}>
+                    {t("Your clients can scan the QR code or enter this code in the CountaDocs app to connect to your workspace.")}
+                  </p>
                 </>
               ) : (
                 <button
@@ -4341,7 +4346,7 @@ export default function Home() {
                   className="primary-button"
                   disabled={workspaceCodeLoading}
                   onClick={() => void fetchWorkspaceCode()}
-                  style={{ margin: "12px auto" }}
+                  style={{ margin: "14px auto" }}
                 >
                   {workspaceCodeLoading ? t("Generating...") : t("Generate Access Code")}
                 </button>
