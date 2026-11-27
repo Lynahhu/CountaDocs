@@ -4204,9 +4204,7 @@ export default function Home() {
                           </span>
                         )}
                       </div>
-                      <p style={{ fontSize: "13px", color: "#6B7280", marginTop: "8px" }}>
-                        {t("Your clients can scan the QR code or enter this code in the CountaDocs app to connect to your workspace.")}
-                      </p>
+
                     </>
                   ) : (
                     <button
@@ -4336,9 +4334,7 @@ export default function Home() {
                     )}
                   </div>
 
-                  <p style={{ fontSize: "11px", color: "#6B7280", margin: "4px 0 0", lineHeight: 1.4 }}>
-                    {t("Your clients can scan the QR code or enter this code in the CountaDocs app to connect to your workspace.")}
-                  </p>
+
                 </>
               ) : (
                 <button
