@@ -90,6 +90,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       valid: true,
       managerId,
+      workspaceId: (managerUser?.user_metadata?.workspace_id as string) || "WS-00001",
       managerName,
       managerEmail: managerUser?.email || null,
     });

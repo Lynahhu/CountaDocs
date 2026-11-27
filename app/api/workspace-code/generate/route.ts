@@ -48,6 +48,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
+    const publicWorkspaceId = (user.user_metadata?.workspace_id as string) || "WS-00001";
+
     // Check if manager already has an active code
     let existingCode: { code: string; created_at: string } | null = null;
     try {
@@ -71,8 +73,18 @@ export async function POST(request: Request) {
     }
 
     if (existingCode) {
+      if (!user.user_metadata?.workspace_id) {
+        try {
+          await supabase.auth.updateUser({
+            data: { workspace_id: publicWorkspaceId },
+          });
+        } catch {
+          // ignore
+        }
+      }
       return NextResponse.json({
         code: existingCode.code,
+        workspaceId: publicWorkspaceId,
         createdAt: existingCode.created_at,
         isNew: false,
       });
@@ -99,10 +111,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Fallback: save to user_metadata so it works even without table migration
+    // Save to user_metadata
     try {
       await supabase.auth.updateUser({
-        data: { workspace_code: code },
+        data: { workspace_code: code, workspace_id: publicWorkspaceId },
       });
     } catch {
       // ignore
@@ -110,6 +122,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       code,
+      workspaceId: publicWorkspaceId,
       createdAt: new Date().toISOString(),
       isNew: true,
     });

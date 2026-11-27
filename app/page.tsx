@@ -1098,6 +1098,7 @@ export default function Home() {
   const [internationalCurrency, setInternationalCurrency] = useState<"USD" | "EUR">("USD");
   const [workspaceCode, setWorkspaceCode] = useState("");
   const [workspaceCodeLoading, setWorkspaceCodeLoading] = useState(false);
+  const [publicWorkspaceId, setPublicWorkspaceId] = useState("WS-00001");
   const [showConnectClientsModal, setShowConnectClientsModal] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
@@ -2412,6 +2413,7 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.code) setWorkspaceCode(data.code);
+      if (data.workspaceId) setPublicWorkspaceId(data.workspaceId);
     } catch (err) {
       console.error("Failed to fetch workspace code:", err);
     } finally {
@@ -3291,7 +3293,7 @@ export default function Home() {
 
       <main className="main-area">
         <header className="topbar">
-          <div className="breadcrumbs"><span>{t("Workspace")}</span><Icon name="chevron" size={14} /><strong>{localizedView(view)}</strong></div>
+          <div className="breadcrumbs"><span>{t("Workspace")}</span><span style={{ background: "rgba(255,255,255,0.2)", padding: "1px 7px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, letterSpacing: "0.5px" }}>{publicWorkspaceId}</span><Icon name="chevron" size={14} /><strong>{localizedView(view)}</strong></div>
           <div className="topbar-actions">
             <label className="language-picker">
               <span className="language-globe"><Icon name="globe" size={16} /></span>
@@ -4143,7 +4145,8 @@ export default function Home() {
           {view === "Settings" && (
             <>
               <div className="page-title-row"><div><div className="date-eyebrow">{t("WORKSPACE PREFERENCES")}</div><h1>{t("Settings")}</h1><p className="page-subtitle">{t("Manage your CountaDocs workspace and profile.")}</p></div></div>
-              <section className="content-card settings-card"><div className="card-heading"><div><h2>{t("Workspace profile")}</h2><p>{t("Your accounting practice details.")}</p></div></div><div className="settings-fields"><label>{t("Workspace name")}<input onChange={(event) => { setWorkspaceName(event.target.value); setSettingsNotice(""); }} placeholder={t("Enter your workspace name")} value={workspaceName} /></label><label>{t("Owner name")}<input readOnly value={profileName} /></label><label>{profileContactLabel}<input readOnly type={profileContactType} value={profileContact} /></label><label>{t("Recovery phone number")}<input autoComplete="tel" onChange={(event) => { setRecoveryPhone(event.target.value); setSettingsNotice(""); }} placeholder={t("e.g. +213 555 01 23 45")} type="tel" value={recoveryPhone} /><span className="settings-help">{t("Recovery information is demo-only and isn’t connected to account recovery yet.")}</span></label>{settingsNotice && <p className="settings-notice" role="status">{settingsNotice}</p>}<div className="settings-actions"><button className="primary-button" onClick={saveWorkspaceName} type="button">{t("Save changes")}</button><button className="cancel-button" disabled={authBusy} onClick={signOut} type="button">{t("Sign out")}</button></div></div></section>
+              <section className="content-card settings-card"><div className="card-heading"><div><h2>{t("Workspace profile")}</h2><p>{t("Your accounting practice details.")}</p></div></div><div className="settings-fields"><label>{t("Public Workspace ID")}<input readOnly value={publicWorkspaceId} style={{ fontFamily: "monospace", fontWeight: 700, color: "#163826", background: "#F9FAFB" }} /></label>
+                <label>{t("Workspace name")}<input onChange={(event) => { setWorkspaceName(event.target.value); setSettingsNotice(""); }} placeholder={t("Enter your workspace name")} value={workspaceName} /></label><label>{t("Owner name")}<input readOnly value={profileName} /></label><label>{profileContactLabel}<input readOnly type={profileContactType} value={profileContact} /></label><label>{t("Recovery phone number")}<input autoComplete="tel" onChange={(event) => { setRecoveryPhone(event.target.value); setSettingsNotice(""); }} placeholder={t("e.g. +213 555 01 23 45")} type="tel" value={recoveryPhone} /><span className="settings-help">{t("Recovery information is demo-only and isn’t connected to account recovery yet.")}</span></label>{settingsNotice && <p className="settings-notice" role="status">{settingsNotice}</p>}<div className="settings-actions"><button className="primary-button" onClick={saveWorkspaceName} type="button">{t("Save changes")}</button><button className="cancel-button" disabled={authBusy} onClick={signOut} type="button">{t("Sign out")}</button></div></div></section>
 
               {/* Workspace Invite Code + QR */}
               <section className="content-card settings-card" style={{ marginTop: "20px" }}>
@@ -4250,9 +4253,10 @@ export default function Home() {
             {/* Header: Title + Subtitle + Close button without crowded grid */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px", gap: "16px" }}>
               <div style={{ textAlign: "left", flex: 1 }}>
-                <h2 id="connect-clients-title" style={{ margin: "0 0 6px", fontSize: "19px", fontWeight: 700, color: "#163826", whiteSpace: "nowrap" }}>
+                <h2 id="connect-clients-title" style={{ margin: "0 0 3px", fontSize: "19px", fontWeight: 700, color: "#163826", whiteSpace: "nowrap" }}>
                   {t("Connect Clients")}
                 </h2>
+                <div style={{ margin: "0 0 6px" }}><span style={{ display: "inline-block", background: "#F2F8F4", border: "1px solid #1E6543", color: "#166534", padding: "1px 7px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>Workspace: {publicWorkspaceId}</span></div>
                 <p style={{ margin: 0, fontSize: "12px", color: "#6B7280", lineHeight: 1.5 }}>
                   {t("Share this QR code or access code with your clients so they can link to your workspace.")}
                 </p>
